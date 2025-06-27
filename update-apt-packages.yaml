@@ -2,8 +2,21 @@
 - hosts: all
   become: true
 
+  pre_tasks:
+    - name: Wait for apt lists lock to be released
+      ansible.builtin.wait_for:
+        path: /var/lib/apt/lists/lock
+        state: absent
+        timeout: 300
+
+    - name: Wait for dpkg lock to be released
+      ansible.builtin.wait_for:
+        path: /var/lib/dpkg/lock-frontend
+        state: absent
+        timeout: 300
+
   tasks:
-    - name: update apt packages
+    - name: Update apt cache and dist-upgrade
       apt:
-        upgrade: yes
         update_cache: yes
+        upgrade: yes
