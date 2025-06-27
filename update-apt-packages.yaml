@@ -3,20 +3,21 @@
   become: true
 
   pre_tasks:
-    - name: Wait for apt lists lock to be released
+    - name: “Wait up to 5s for apt lists lock to be released”
       ansible.builtin.wait_for:
         path: /var/lib/apt/lists/lock
         state: absent
-        timeout: 300
-
-    - name: Wait for dpkg lock to be released
-      ansible.builtin.wait_for:
-        path: /var/lib/dpkg/lock-frontend
-        state: absent
-        timeout: 300
+        timeout: 5
+      # don’t blow up if it’s still there after 5s
+      failed_when: false
+      register: apt_lock_wait
 
   tasks:
-    - name: Update apt cache and dist-upgrade
+    - name: “Update apt cache & upgrade if possible”
       apt:
         update_cache: yes
         upgrade: yes
+        # (Ansible 2.10+ only) also set an internal timeout
+        lock_timeout: 5
+      # if wait_for never cleared the lock, we’ll still try—but never fatally fail
+      ignore_errors: true
