@@ -4,7 +4,7 @@
   gather_facts: true
 
   vars:
-    docker_needed: "{{ (docker_cli.rc != 0) or (compose.cli.rc != 0) }}"
+    docker_needed: "{{ (docker_cli.rc != 0) or (compose_cli.rc != 0) }}"
 
   tasks:
     - name: Check for Docker CLI
