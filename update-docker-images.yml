@@ -1,0 +1,15 @@
+---
+- name: Pull & restart compose stacks
+  hosts: all
+  tasks:
+    - name: Pull latest images
+      ansible.builtin.shell: |
+        cd /path/to/your/compose/dir
+        docker compose pull
+      become: true
+
+    - name: Recreate containers
+      ansible.builtin.shell: |
+        cd /path/to/your/compose/dir
+        docker compose up -d
+      become: true
