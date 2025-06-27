@@ -1,33 +1,73 @@
 ---
 - hosts: all
   become: true
-  gather_facts: false
+  gather_facts: true
+
+  vars:
+    docker_needed: "{{ (docker_cli.rc != 0) or (compose.cli.rc != 0) }}"
 
   tasks:
     - name: Check for Docker CLI
       command: docker --version
-      register: docker_check
+      register: docker_cli
       changed_when: false
       ignore_errors: true
 
-    - name: Check for Docker Compose
+    - name: Check for Docker Compose plugin
       command: docker compose version
-      register: compose_check
+      register: compose_cli
       changed_when: false
       ignore_errors: true
 
-    - name: Fail if Docker is not installed
-      fail:
-        msg: "❌ Docker CLI is not installed on {{ inventory_hostname }}. Please install Docker first."
-      when: docker_check.rc != 0
+    - name: Install prerequisites for Docker (APT hosts only)
+      apt:
+        name:
+          - apt-transport-https
+          - ca-certificates
+          - curl
+          - gnupg
+          - lsb-release
+        state: present
+        update_cache: yes
+      when:
+        - ansible_os_family == "Debian"
+        - docker_needed
 
-    - name: Fail if Docker Compose is not installed
-      fail:
-        msg: "❌ Docker Compose is not installed on {{ inventory_hostname }}. Please install Docker Compose first."
-      when: compose_check.rc != 0
+    - name: Add Docker’s official GPG key
+      apt_key:
+        url: https://download.docker.com/linux/ubuntu/gpg
+        state: present
+      when:
+        - ansible_os_family == "Debian"
+        - docker_needed
 
-    - name: Success – Docker & Compose are present
+    - name: Add Docker APT repository
+      apt_repository:
+        repo: "deb [arch=amd64] https://download.docker.com/linux/ubuntu {{ ansible_lsb.codename }} stable"
+        state: present
+        update_cache: yes
+      when:
+        - ansible_os_family == "Debian"
+        - docker_needed
+
+    - name: Install Docker Engine + Compose plugin
+      apt:
+        name:
+          - docker-ce
+          - docker-ce-cli
+          - containerd.io
+          - docker-compose-plugin
+        state: present
+        update_cache: yes
+      when:
+        - ansible_os_family == "Debian"
+        - docker_needed
+
+    - name: Report installation result
       debug:
-        msg: >
-          ✅ Docker ({{ docker_check.stdout }}) and
-          Docker Compose ({{ compose_check.stdout }}) are installed on {{ inventory_hostname }}.
+        msg: >-
+          {% if docker_needed %}
+            ✅ Installed Docker and Compose plugin on {{ inventory_hostname }}
+          {% else %}
+            ✅ Docker ({{ docker_cli.stdout }}) and Compose ({{ compose_cli.stdout }}) already present on {{ inventory_hostname }}
+          {% endif %}
