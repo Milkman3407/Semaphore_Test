@@ -1,27 +1,25 @@
 ---
-- hosts: your_docker_vm_group
+- name: Pull & deploy latest Docker Compose stacks
+  hosts: all
   become: true
-  gather_facts: false
-
   vars:
-    # if you already know your compose dirs, you can list them here instead of using 'find'
-    # compose_dirs:
-    #   - /opt/serviceA
-    #   - /opt/serviceB
-
+    compose_search_paths:
+      - /opt
+      - /srv
+      - /home
   tasks:
-    - name: Find all Docker-Compose files on disk
-      ansible.builtin.find:
-        paths: /
-        patterns: docker-compose.yml
-        use_regex: false
+
+    - name: Discover all docker-compose.yml files
+      find:
+        paths: "{{ compose_search_paths }}"
+        patterns: "docker-compose.yml"
       register: compose_manifests
 
-    - name: Pull latest images & bring up stack in each compose dir
-      community.docker.docker_compose:
+    - name: Pull latest images & bring up the stack
+      community.docker.docker_compose_v2:
         project_src: "{{ item.path | dirname }}"
         pull: yes
         state: present
       loop: "{{ compose_manifests.files }}"
       loop_control:
-        label: "{{ item.path | dirname }}"
+        label: "{{ item.path }}"
