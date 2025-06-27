@@ -1,15 +1,27 @@
 ---
-- name: Pull & restart compose stacks
-  hosts: all
-  tasks:
-    - name: Pull latest images
-      ansible.builtin.shell: |
-        cd /path/to/your/compose/dir
-        docker compose pull
-      become: true
+- hosts: your_docker_vm_group
+  become: true
+  gather_facts: false
 
-    - name: Recreate containers
-      ansible.builtin.shell: |
-        cd /path/to/your/compose/dir
-        docker compose up -d
-      become: true
+  vars:
+    # if you already know your compose dirs, you can list them here instead of using 'find'
+    # compose_dirs:
+    #   - /opt/serviceA
+    #   - /opt/serviceB
+
+  tasks:
+    - name: Find all Docker-Compose files on disk
+      ansible.builtin.find:
+        paths: /
+        patterns: docker-compose.yml
+        use_regex: false
+      register: compose_manifests
+
+    - name: Pull latest images & bring up stack in each compose dir
+      community.docker.docker_compose:
+        project_src: "{{ item.path | dirname }}"
+        pull: yes
+        state: present
+      loop: "{{ compose_manifests.files }}"
+      loop_control:
+        label: "{{ item.path | dirname }}"
