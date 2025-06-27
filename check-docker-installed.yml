@@ -1,0 +1,33 @@
+---
+- hosts: all
+  become: true
+  gather_facts: false
+
+  tasks:
+    - name: Check for Docker CLI
+      command: docker --version
+      register: docker_check
+      changed_when: false
+      ignore_errors: true
+
+    - name: Check for Docker Compose
+      command: docker compose version
+      register: compose_check
+      changed_when: false
+      ignore_errors: true
+
+    - name: Fail if Docker is not installed
+      fail:
+        msg: "❌ Docker CLI is not installed on {{ inventory_hostname }}. Please install Docker first."
+      when: docker_check.rc != 0
+
+    - name: Fail if Docker Compose is not installed
+      fail:
+        msg: "❌ Docker Compose is not installed on {{ inventory_hostname }}. Please install Docker Compose first."
+      when: compose_check.rc != 0
+
+    - name: Success – Docker & Compose are present
+      debug:
+        msg: >
+          ✅ Docker ({{ docker_check.stdout }}) and
+          Docker Compose ({{ compose_check.stdout }}) are installed on {{ inventory_hostname }}.
